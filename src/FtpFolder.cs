@@ -12,7 +12,6 @@ public class FtpFolder :
     IMoveFrom,
     ICreateCopyOf
 {
-    private string _name;
     private readonly AsyncFtpClient _ftpClient;
 
     /// <summary>
@@ -23,16 +22,18 @@ public class FtpFolder :
     public FtpFolder(AsyncFtpClient ftpClient, FtpListItem item)
     {
         _ftpClient = ftpClient;
+
         FtpListItem = item;
+        Name = item.Name;
     }
 
     public FtpListItem FtpListItem { get; }
 
+    public string Name { get; }
+
     public string Id => Path;
 
     public string Path => FtpListItem.FullName;
-
-    public string Name => _name ??= global::System.IO.Path.GetFileName(Path);
 
     public async Task<IChildFile> CreateCopyOfAsync(IFile fileToCopy, bool overwrite, CancellationToken cancellationToken, CreateCopyOfDelegate fallback)
     {
@@ -44,20 +45,17 @@ public class FtpFolder :
         var newFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
 
         if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
-            throw new FileAlreadyExistsException("The destination file already exists.");
+            goto GetStorable;
 
-        using var stream = await _ftpClient.OpenRead(fileToCopy.Id, token: cancellationToken);
-        
-        var status = await _ftpClient.UploadStream(
-            stream,
-            newFilePath,
-            FtpRemoteExists.Overwrite,
-            token: cancellationToken
-        );
+        using (var stream = await _ftpClient.OpenRead(fileToCopy.Id, token: cancellationToken))
+        {
+            var status = await _ftpClient.UploadStream(stream, newFilePath, FtpRemoteExists.Overwrite, token: cancellationToken);
 
-        if (status == FtpStatus.Failed)
-            throw new Exception("Failed to copy file.");
+            if (status == FtpStatus.Failed)
+                throw new Exception("Failed to copy file.");
+        }
 
+    GetStorable:
         var item = await _ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
 
         if (item is not IChildFile)
@@ -141,15 +139,16 @@ public class FtpFolder :
 
     public Task<IFolderWatcher> GetFolderWatcherAsync(CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException("Cannot watch FTP folders.");
+        throw new NotSupportedException("Cannot create a watcher for FTP folders.");
     }
 
     public async Task<IStorableChild> GetItemAsync(string id, CancellationToken cancellationToken = default)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
-        var item = await _ftpClient.GetStorableFromPathAsync(id, cancellationToken);
-        
+        var item = await _ftpClient.GetStorableFromPathAsync(id, cancellationToken)
+            ?? throw new FileNotFoundException($"Could not find item with path \"{id}\".");
+
         if (!id.Contains(item.Id))
             throw new FileNotFoundException("The provided Id does not belong to an item in this folder.");
 
@@ -189,9 +188,7 @@ public class FtpFolder :
             });
 
         await foreach (var item in enumerable)
-        {
             yield return item;
-        }
     }
 
     public async Task<IFolder?> GetParentAsync(CancellationToken cancellationToken = default)
@@ -221,18 +218,12 @@ public class FtpFolder :
         var newFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
 
         if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
-            throw new FileAlreadyExistsException("The destination file already exists.");
+            goto GetStorable;
 
-        if (!await _ftpClient.MoveFile(
-            fileToMove.Id,
-            newFilePath,
-            FtpRemoteExists.Overwrite,
-            cancellationToken)
-        )
-        {
+        if (!await _ftpClient.MoveFile(fileToMove.Id, newFilePath, FtpRemoteExists.Overwrite, cancellationToken))
             throw new Exception($"Cannot move file \"{fileToMove.Id}\" to destination path \"{Id}\".");
-        }
 
+    GetStorable:
         var item = await _ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
 
         if (item is not IChildFile)
