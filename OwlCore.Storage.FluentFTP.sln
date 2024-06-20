@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34916.146
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.Storage.FluentFTP", "src\OwlCore.Storage.FluentFTP.csproj", "{960ECB6C-64DF-44B8-9732-E037335C1B2F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OwlCore.Storage.FluentFTP.Tests", "tests\OwlCore.Storage.FluentFTP.Tests\OwlCore.Storage.FluentFTP.Tests.csproj", "{9C1DCF88-473D-4093-995B-9CE9AC567C81}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{960ECB6C-64DF-44B8-9732-E037335C1B2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{960ECB6C-64DF-44B8-9732-E037335C1B2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{960ECB6C-64DF-44B8-9732-E037335C1B2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{960ECB6C-64DF-44B8-9732-E037335C1B2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C1DCF88-473D-4093-995B-9CE9AC567C81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C1DCF88-473D-4093-995B-9CE9AC567C81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C1DCF88-473D-4093-995B-9CE9AC567C81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C1DCF88-473D-4093-995B-9CE9AC567C81}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C998422C-A132-41A7-81D6-158B1F9556DA}
+	EndGlobalSection
+EndGlobal

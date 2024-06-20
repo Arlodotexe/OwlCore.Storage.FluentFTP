@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentFTP" Version="50.0.1" />
+    <PackageReference Include="Nerdbank.Streams" Version="2.11.74" />
+    <PackageReference Include="OwlCore.Storage" Version="0.11.1" />
+  </ItemGroup>
+
+</Project>
