@@ -11,7 +11,12 @@ public class FtpFileTests : CommonIFileTests
     [TestInitialize]
     public async Task InitAsync()
     {
-        _ftpClient = new AsyncFtpClient("192.168.197.136", "Anonymous", "", 21);
+        var serverHost = Environment.GetEnvironmentVariable("SERVER_HOST");
+        var port = Convert.ToInt32(Environment.GetEnvironmentVariable("PORT"));
+        var username = Environment.GetEnvironmentVariable("USERNAME");
+        var password = Environment.GetEnvironmentVariable("PASSWORD");
+
+        _ftpClient = new AsyncFtpClient(serverHost, username, password, port);
     }
 
     [TestMethod]

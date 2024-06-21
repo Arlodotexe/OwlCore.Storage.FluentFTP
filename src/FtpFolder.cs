@@ -35,7 +35,7 @@ public class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
         var newFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
 
         if (!overwrite && await ftpClient.FileExists(newFilePath, cancellationToken))
-            goto GetStorable;
+            throw new FileAlreadyExistsException("Destination file already exists.");
 
         using (var stream = await ftpClient.OpenRead(fileToCopy.Id, token: cancellationToken))
         {
@@ -45,7 +45,6 @@ public class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
                 throw new Exception("Failed to copy file.");
         }
 
-    GetStorable:
         var item = await ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
 
         if (item is not IChildFile)
@@ -208,12 +207,11 @@ public class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
         var newFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
 
         if (!overwrite && await ftpClient.FileExists(newFilePath, cancellationToken))
-            goto GetStorable;
+            throw new FileAlreadyExistsException("Destination file already exists.");
 
         if (!await ftpClient.MoveFile(fileToMove.Id, newFilePath, FtpRemoteExists.Overwrite, cancellationToken))
             throw new Exception($"Cannot move file \"{fileToMove.Id}\" to destination path \"{Id}\".");
 
-    GetStorable:
         var item = await ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
 
         if (item is not IChildFile)

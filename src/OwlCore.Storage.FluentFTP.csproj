@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="FluentFTP" Version="50.0.1" />
     <PackageReference Include="Nerdbank.Streams" Version="2.11.74" />
-    <PackageReference Include="OwlCore.Storage" Version="0.11.1" />
+    <PackageReference Include="OwlCore.Storage" Version="0.11.2" />
   </ItemGroup>
 
 </Project>

@@ -26,6 +26,26 @@ await foreach (var item in ftpClient.GetListingAsyncEnumerable("/"))
 }
 ```
 
+## Running Tests
+
+In order to run tests, you have to create a .runsettings file in the `OwlCore.Storage.FluentFTP.Tests` projects with the following content:
+
+```
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+    <RunConfiguration>
+        <EnvironmentVariables>
+            <SERVER_HOST>...</SERVER_HOST>
+            <PORT>...</PORT>
+            <USERNAME>...</USERNAME>
+            <PASSWORD>...</PASSWORD>
+        </EnvironmentVariables>
+    </RunConfiguration>
+</RunSettings>
+```
+
+Set the properties with their respective values, then run the tests. Note that tests currently will only work on an FTP server with the permission to read and write.
+
 ## Financing
 
 We accept donations [here](https://github.com/sponsors/Arlodotexe) and [here](https://www.patreon.com/arlodotexe), and we do not have any active bug bounties.
