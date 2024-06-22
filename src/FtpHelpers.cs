@@ -13,6 +13,16 @@ namespace OwlCore.Storage.FluentFTP
         {
             await client.EnsureConnectedAsync(cancellationToken);
 
+            if (path == "/" || path == Path.DirectorySeparatorChar.ToString())
+            {
+                return new FtpFolder(client, new FtpListItem()
+                {
+                    Name = "",
+                    FullName = "/",
+                    Type = FtpObjectType.Directory
+                });
+            }
+
             var item = await client.GetObjectInfo(path, true, cancellationToken);
 
             if (item == null) return null;

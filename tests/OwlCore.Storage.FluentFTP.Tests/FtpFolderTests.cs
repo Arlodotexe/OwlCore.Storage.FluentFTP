@@ -21,58 +21,48 @@ public class FtpFolderTests : CommonIModifiableFolderTests
 
     public override async Task<IModifiableFolder> CreateModifiableFolderAsync()
     {
-        var rootFolder = await _ftpClient.GetStorableFromPathAsync("/owlcorestoragetest") as FtpFolder;
-
-        if (rootFolder == null)
-        {
-            await _ftpClient.CreateDirectory("/owlcorestoragetest");
-            rootFolder = await _ftpClient.GetStorableFromPathAsync("/owlcorestoragetest") as FtpFolder;
-        }
+        var rootFolder = await FtpFolder.GetFromFtpPathAsync(_ftpClient, "/");
+        var folder = await rootFolder.CreateFolderAsync("owlcorestoragetest") as FtpFolder;
 
         var ulid = Ulid.NewUlid().ToString();
 
         foreach (var character in Path.GetInvalidFileNameChars())
             ulid = ulid.Replace(character, '_');
 
-        var folder = await rootFolder!.CreateFolderAsync(ulid);
+        var childFolder = await folder!.CreateFolderAsync(ulid);
 
-        Assert.IsNotNull(folder);
+        Assert.IsNotNull(childFolder);
 
-        return (folder as IModifiableFolder)!;
+        return (childFolder as IModifiableFolder)!;
     }
 
     public override async Task<IModifiableFolder> CreateModifiableFolderWithItems(int fileCount, int folderCount)
     {
-        var rootFolder = await _ftpClient.GetStorableFromPathAsync("/owlcorestoragetest") as FtpFolder;
-
-        if (rootFolder == null)
-        {
-            Assert.IsTrue(await _ftpClient.CreateDirectory("/owlcorestoragetest"));
-            rootFolder = await _ftpClient.GetStorableFromPathAsync("/owlcorestoragetest") as FtpFolder;
-        }
+        var rootFolder = await FtpFolder.GetFromFtpPathAsync(_ftpClient, "/");
+        var folder = await rootFolder.CreateFolderAsync("owlcorestoragetest") as FtpFolder;
 
         var ulid = Ulid.NewUlid().ToString();
 
         foreach (var character in Path.GetInvalidFileNameChars())
             ulid = ulid.Replace(character, '_');
 
-        var folder = await rootFolder!.CreateFolderAsync(ulid) as IModifiableFolder;
+        var childFolder = await folder!.CreateFolderAsync(ulid) as IModifiableFolder;
 
-        Assert.IsNotNull(folder);
+        Assert.IsNotNull(childFolder);
 
         for (var i = 0; i < fileCount; i++)
         {
-            var file = await folder.CreateFileAsync($"{ulid}_{i}.txt");
+            var file = await childFolder.CreateFileAsync($"{ulid}_{i}.txt");
             Assert.IsNotNull(file);
         }
 
         for (var i = 0; i < folderCount; i++)
         {
-            var subFolder = await folder.CreateFolderAsync($"{ulid}_{i}");
+            var subFolder = await childFolder.CreateFolderAsync($"{ulid}_{i}");
             Assert.IsNotNull(subFolder);
         }
 
-        return folder;
+        return childFolder;
     }
 
     [TestCleanup]
