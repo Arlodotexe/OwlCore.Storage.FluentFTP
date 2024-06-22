@@ -2,6 +2,7 @@
 
 namespace OwlCore.Storage.FluentFTP;
 
+// Helper methods to get files from path directly.
 public partial class FtpFile
 {
     /// <summary>
@@ -44,6 +45,6 @@ public partial class FtpFile
 
         var item = await ftpClient.GetStorableFromPathAsync(path, cancellationToken);
 
-        return item is FtpFile file ? file : null;
+        return item as FtpFile;
     }
 }
