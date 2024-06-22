@@ -19,42 +19,6 @@ public class FtpFileTests : CommonIFileTests
         _ftpClient = new AsyncFtpClient(serverHost, username, password, port);
     }
 
-    [TestMethod]
-    [AllEnumFlagCombinations(typeof(FileAccess))]
-    public async Task OpenStreamAndTryEachAccessMode(FileAccess accessMode)
-    {
-        var file = await CreateFileAsync();
-
-        if (accessMode == 0)
-        {
-            await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(() => file.OpenStreamAsync(accessMode));
-            return;
-        }
-
-        // Don't test writing if not supported.
-        if (!SupportsWriting)
-            accessMode ^= FileAccess.Write;
-
-        // If removing write access resulted in empty flag.
-        if (accessMode == 0)
-            return;
-
-        using var stream = await file.OpenStreamAsync(accessMode);
-
-        if (accessMode.HasFlag(FileAccess.Read))
-        {
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-
-            Assert.AreNotEqual(0, memoryStream.ToArray().Length);
-        }
-
-        if (accessMode.HasFlag(FileAccess.Write) && SupportsWriting)
-        {
-            stream.WriteByte(0);
-        }
-    }
-
     public override Task<IFile> CreateFileAsync()
     {
         return GenerateRandomFile(256_000);

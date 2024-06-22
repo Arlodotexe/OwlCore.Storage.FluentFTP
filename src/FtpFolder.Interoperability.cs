@@ -49,7 +49,8 @@ public partial class FtpFolder
     private async Task<IChildFile> MoveFromInteroperableAsync(
         AsyncFtpClient sourceClient,
         AsyncFtpClient targetClient,
-        IFile fileToMove,
+        IModifiableFolder sourceFolder,
+        IChildFile fileToMove,
         IModifiableFolder targetFolder,
         bool overwrite,
         MoveFromDelegate fallback,
@@ -76,7 +77,7 @@ public partial class FtpFolder
             // Either the server does not support FXP or the transfer failed.
             // Only thing we can do in this case is to use the fallback
             // implementation.
-            return await fallback(this, fileToMove, overwrite, cancellationToken);
+            return await fallback(this, fileToMove, sourceFolder, overwrite, cancellationToken);
         }
 
         await sourceClient.DeleteFile(fileToMove.Id, cancellationToken);

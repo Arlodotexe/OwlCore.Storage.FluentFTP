@@ -90,7 +90,7 @@ public partial class FtpFolder :
             if (sourceHostUri != targetHostUri)
             {
                 var targetFilePath = global::System.IO.Path.Combine(Id, ftpFile.Name);
-                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToMove, this, overwrite, fallback, cancellationToken);
+                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, source, fileToMove, this, overwrite, fallback, cancellationToken);
             }
         }
 
