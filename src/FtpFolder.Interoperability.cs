@@ -9,8 +9,9 @@ public partial class FtpFolder
         AsyncFtpClient sourceClient,
         AsyncFtpClient targetClient,
         IFile fileToCopy,
-        string targetFilePath,
+        IModifiableFolder targetFolder,
         bool overwrite,
+        CreateCopyOfDelegate fallback,
         CancellationToken cancellationToken
     )
     {
@@ -18,6 +19,8 @@ public partial class FtpFolder
             sourceClient.EnsureConnectedAsync(cancellationToken),
             targetClient.EnsureConnectedAsync(cancellationToken)
         );
+
+        var targetFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
 
         var status = await sourceClient.TransferFile(
             fileToCopy.Id,
@@ -28,7 +31,12 @@ public partial class FtpFolder
         );
 
         if (status == FtpStatus.Failed)
-            throw new Exception("Failed to copy file to target server.");
+        {
+            // Either the server does not support FXP or the transfer failed.
+            // Only thing we can do in this case is to use the fallback
+            // implementation.
+            return await fallback(this, fileToCopy, overwrite, cancellationToken);
+        }
 
         var file = await targetClient.GetStorableFromPathAsync(targetFilePath, cancellationToken);
 
@@ -42,8 +50,9 @@ public partial class FtpFolder
         AsyncFtpClient sourceClient,
         AsyncFtpClient targetClient,
         IFile fileToMove,
-        string targetFilePath,
+        IModifiableFolder targetFolder,
         bool overwrite,
+        MoveFromDelegate fallback,
         CancellationToken cancellationToken
     )
     {
@@ -51,6 +60,8 @@ public partial class FtpFolder
             sourceClient.EnsureConnectedAsync(cancellationToken),
             targetClient.EnsureConnectedAsync(cancellationToken)
         );
+
+        var targetFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
 
         var status = await sourceClient.TransferFile(
             fileToMove.Id,
@@ -61,7 +72,12 @@ public partial class FtpFolder
         );
 
         if (status == FtpStatus.Failed)
-            throw new Exception("Failed to move file to target server.");
+        {
+            // Either the server does not support FXP or the transfer failed.
+            // Only thing we can do in this case is to use the fallback
+            // implementation.
+            return await fallback(this, fileToMove, overwrite, cancellationToken);
+        }
 
         await sourceClient.DeleteFile(fileToMove.Id, cancellationToken);
 

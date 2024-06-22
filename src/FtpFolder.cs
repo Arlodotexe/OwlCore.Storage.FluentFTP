@@ -49,12 +49,11 @@ public partial class FtpFolder :
             if (sourceHostUri != targetHostUri)
             {
                 var targetFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
-                return await CreateCopyOfInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToCopy, targetFilePath, overwrite, cancellationToken);
+                return await CreateCopyOfInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToCopy, this, overwrite, fallback, cancellationToken);
             }
         }
 
         var newFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
-
 
         if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
             throw new FileAlreadyExistsException("Destination file already exists.");
@@ -91,7 +90,7 @@ public partial class FtpFolder :
             if (sourceHostUri != targetHostUri)
             {
                 var targetFilePath = global::System.IO.Path.Combine(Id, ftpFile.Name);
-                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, ftpFile, targetFilePath, overwrite, cancellationToken);
+                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToMove, this, overwrite, fallback, cancellationToken);
             }
         }
 
