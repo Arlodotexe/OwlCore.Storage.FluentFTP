@@ -8,7 +8,7 @@ namespace OwlCore.Storage.FluentFTP;
 /// </summary>
 /// <param name="ftpClient">The FTP client to use for the file operations.</param>
 /// <param name="item">The FTP listing item to use to provide information.</param>
-public class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
+public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
     IModifiableFolder,
     IChildFolder,
     IGetItem,

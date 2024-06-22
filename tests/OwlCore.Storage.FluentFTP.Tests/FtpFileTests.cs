@@ -62,13 +62,8 @@ public class FtpFileTests : CommonIFileTests
         async Task<IFile> GenerateRandomFile(int fileSize)
         {
             // Create
-            var folder = await _ftpClient.GetStorableFromPathAsync("/owlcorestoragetest") as FtpFolder;
-
-            if (folder == null)
-            {
-                Assert.IsTrue(await _ftpClient.CreateDirectory("/owlcorestoragetest"));
-                folder = await _ftpClient.GetStorableFromPathAsync("/owlcorestoragetest") as FtpFolder;
-            }
+            var rootFolder = await FtpFolder.GetFromFtpPathAsync(_ftpClient, "/");
+            var folder = await rootFolder.CreateFolderAsync("owlcorestoragetest") as FtpFolder;
 
             var file = await folder!.CreateFileAsync(Ulid.NewUlid().ToString());
 

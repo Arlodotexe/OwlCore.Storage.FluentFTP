@@ -9,9 +9,19 @@ namespace OwlCore.Storage.FluentFTP
             return client.IsConnected ? Task.CompletedTask : client.Connect(true, cancellationToken);
         }
 
-        public static async Task<IStorable?> GetStorableFromPathAsync(this AsyncFtpClient client, string path, CancellationToken cancellationToken = default)
+        internal static async Task<IStorable?> GetStorableFromPathAsync(this AsyncFtpClient client, string path, CancellationToken cancellationToken = default)
         {
             await client.EnsureConnectedAsync(cancellationToken);
+
+            if (path == "/" || path == Path.DirectorySeparatorChar.ToString())
+            {
+                return new FtpFolder(client, new FtpListItem()
+                {
+                    Name = "",
+                    FullName = "/",
+                    Type = FtpObjectType.Directory
+                });
+            }
 
             var item = await client.GetObjectInfo(path, true, cancellationToken);
 
