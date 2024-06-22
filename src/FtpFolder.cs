@@ -3,12 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace OwlCore.Storage.FluentFTP;
 
-/// <summary>
-/// Initializes an instance of <see cref="FtpFolder"/>.
-/// </summary>
-/// <param name="ftpClient">The FTP client to use for the file operations.</param>
-/// <param name="item">The FTP listing item to use to provide information.</param>
-public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
+public partial class FtpFolder :
     IModifiableFolder,
     IChildFolder,
     IGetItem,
@@ -17,7 +12,20 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
     IMoveFrom,
     ICreateCopyOf
 {
-    public FtpListItem FtpListItem => item;
+    internal readonly AsyncFtpClient _ftpClient;
+
+    /// <summary>
+    /// Initializes an instance of <see cref="FtpFolder"/>.
+    /// </summary>
+    /// <param name="ftpClient">The FTP client to use for the file operations.</param>
+    /// <param name="item">The FTP listing item to use to provide information.</param>
+    public FtpFolder(AsyncFtpClient ftpClient, FtpListItem item)
+    {
+        _ftpClient = ftpClient;
+        FtpListItem = item;
+    }
+
+    public FtpListItem FtpListItem { get; }
 
     public string Name => FtpListItem.Name;
 
@@ -27,25 +35,74 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
 
     public async Task<IChildFile> CreateCopyOfAsync(IFile fileToCopy, bool overwrite, CancellationToken cancellationToken, CreateCopyOfDelegate fallback)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         if (fileToCopy is not FtpFile)
             return await fallback(this, fileToCopy, overwrite, cancellationToken);
+        else
+        {
+            var ftpFile = (FtpFile)fileToCopy;
+
+            var targetHostUri = new Uri($"ftp://{_ftpClient.Host}:{_ftpClient.Port}");
+            var sourceHostUri = new Uri($"ftp://{ftpFile._ftpClient.Host}:{ftpFile._ftpClient.Port}");
+
+            if (sourceHostUri != targetHostUri)
+            {
+                var targetFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
+                return await CreateCopyOfInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToCopy, this, overwrite, fallback, cancellationToken);
+            }
+        }
 
         var newFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
 
-        if (!overwrite && await ftpClient.FileExists(newFilePath, cancellationToken))
+        if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
             throw new FileAlreadyExistsException("Destination file already exists.");
 
-        using (var stream = await ftpClient.OpenRead(fileToCopy.Id, token: cancellationToken))
+        using (var stream = await _ftpClient.OpenRead(fileToCopy.Id, token: cancellationToken))
         {
-            var status = await ftpClient.UploadStream(stream, newFilePath, FtpRemoteExists.Overwrite, token: cancellationToken);
+            var status = await _ftpClient.UploadStream(stream, newFilePath, FtpRemoteExists.Overwrite, token: cancellationToken);
 
             if (status == FtpStatus.Failed)
                 throw new Exception("Failed to copy file.");
         }
 
-        var item = await ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
+        var item = await _ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
+
+        if (item is not IChildFile)
+            throw new InvalidOperationException();
+
+        return (IChildFile)item;
+    }
+
+    public async Task<IChildFile> MoveFromAsync(IChildFile fileToMove, IModifiableFolder source, bool overwrite, CancellationToken cancellationToken, MoveFromDelegate fallback)
+    {
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
+
+        if (source is not FtpFolder)
+            return await fallback(this, fileToMove, source, overwrite, cancellationToken);
+        else
+        {
+            var ftpFile = (FtpFile)fileToMove;
+
+            var targetHostUri = new Uri($"ftp://{_ftpClient.Host}:{_ftpClient.Port}");
+            var sourceHostUri = new Uri($"ftp://{ftpFile._ftpClient.Host}:{ftpFile._ftpClient.Port}");
+
+            if (sourceHostUri != targetHostUri)
+            {
+                var targetFilePath = global::System.IO.Path.Combine(Id, ftpFile.Name);
+                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToMove, this, overwrite, fallback, cancellationToken);
+            }
+        }
+
+        var newFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
+
+        if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
+            throw new FileAlreadyExistsException("Destination file already exists.");
+
+        if (!await _ftpClient.MoveFile(fileToMove.Id, newFilePath, FtpRemoteExists.Overwrite, cancellationToken))
+            throw new Exception($"Cannot move file \"{fileToMove.Id}\" to destination path \"{Id}\".");
+
+        var item = await _ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
 
         if (item is not IChildFile)
             throw new InvalidOperationException();
@@ -55,11 +112,11 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
 
     public async Task<IChildFile> CreateFileAsync(string name, bool overwrite = false, CancellationToken cancellationToken = default)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         var newFilePath = global::System.IO.Path.Combine(Id, name);
 
-        var status = await ftpClient.UploadBytes(
+        var status = await _ftpClient.UploadBytes(
             [],
             newFilePath,
             overwrite ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip,
@@ -69,7 +126,7 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
         if (status == FtpStatus.Failed)
             throw new Exception($"Failed to create file with name \"{name}\" in path \"{Id}\".");
 
-        var item = await ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
+        var item = await _ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
 
         if (item is not IChildFile)
             throw new InvalidOperationException();
@@ -79,16 +136,16 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
 
     public async Task<IChildFolder> CreateFolderAsync(string name, bool overwrite = false, CancellationToken cancellationToken = default)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         var folderPath = global::System.IO.Path.Combine(Id, name);
-        var folderExists = await ftpClient.DirectoryExists(folderPath, cancellationToken);
+        var folderExists = await _ftpClient.DirectoryExists(folderPath, cancellationToken);
 
         if (overwrite)
-            await ftpClient.DeleteDirectory(folderPath, FtpListOption.Recursive, cancellationToken);
+            await _ftpClient.DeleteDirectory(folderPath, FtpListOption.Recursive, cancellationToken);
         else if (folderExists)
         {
-            var existing = await ftpClient.GetStorableFromPathAsync(folderPath, cancellationToken);
+            var existing = await _ftpClient.GetStorableFromPathAsync(folderPath, cancellationToken);
 
             if (existing is not IChildFolder)
                 throw new InvalidOperationException();
@@ -96,10 +153,10 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
             return (IChildFolder)existing;
         }
 
-        if (!await ftpClient.CreateDirectory(folderPath, cancellationToken))
+        if (!await _ftpClient.CreateDirectory(folderPath, cancellationToken))
             throw new Exception($"Failed to create folder with name \"{name}\" in path \"{Id}\".");
 
-        var item = await ftpClient.GetStorableFromPathAsync(folderPath, cancellationToken);
+        var item = await _ftpClient.GetStorableFromPathAsync(folderPath, cancellationToken);
 
         if (item is not IChildFolder)
             throw new InvalidOperationException();
@@ -109,20 +166,20 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
 
     public async Task DeleteAsync(IStorableChild item, CancellationToken cancellationToken = default)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         if (item is IFolder)
         {
-            await ftpClient.DeleteDirectory(item.Id, FtpListOption.Recursive, cancellationToken);
+            await _ftpClient.DeleteDirectory(item.Id, FtpListOption.Recursive, cancellationToken);
             return;
         }
 
-        await ftpClient.DeleteFile(item.Id, cancellationToken);
+        await _ftpClient.DeleteFile(item.Id, cancellationToken);
     }
 
     public async Task<IStorableChild> GetFirstByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
         return await GetItemAsync(global::System.IO.Path.Combine(Id, name), cancellationToken);
     }
 
@@ -133,9 +190,9 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
 
     public async Task<IStorableChild> GetItemAsync(string id, CancellationToken cancellationToken = default)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
-        var item = await ftpClient.GetStorableFromPathAsync(id, cancellationToken)
+        var item = await _ftpClient.GetStorableFromPathAsync(id, cancellationToken)
             ?? throw new FileNotFoundException($"Could not find item with path \"{id}\".");
 
         if (!id.Contains(item.Id))
@@ -159,9 +216,9 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
         if (type == StorableType.None)
             throw new ArgumentOutOfRangeException(nameof(type), $"{nameof(StorableType)}.{type} is not valid here.");
 
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
-        var enumerable = ftpClient.GetListingEnumerable(Id, cancellationToken)
+        var enumerable = _ftpClient.GetListingEnumerable(Id, cancellationToken)
             .Where(item => type switch
             {
                 StorableType.File => item.Type == FtpObjectType.File,
@@ -171,9 +228,9 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
             .Select<FtpListItem, IStorableChild>(item =>
             {
                 if (item.Type == FtpObjectType.Directory)
-                    return new FtpFolder(ftpClient, item);
+                    return new FtpFolder(_ftpClient, item);
 
-                return new FtpFile(ftpClient, item);
+                return new FtpFile(_ftpClient, item);
             });
 
         await foreach (var item in enumerable)
@@ -182,41 +239,18 @@ public partial class FtpFolder(AsyncFtpClient ftpClient, FtpListItem item) :
 
     public async Task<IFolder?> GetParentAsync(CancellationToken cancellationToken = default)
     {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
+        await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         var parentPath = global::System.IO.Path.GetDirectoryName(Id);
 
         if (string.IsNullOrEmpty(parentPath))
             return null;
 
-        var folder = await ftpClient.GetStorableFromPathAsync(parentPath, cancellationToken);
+        var folder = await _ftpClient.GetStorableFromPathAsync(parentPath, cancellationToken);
 
         if (folder is not IFolder)
             throw new InvalidOperationException();
 
         return (IFolder)folder;
-    }
-
-    public async Task<IChildFile> MoveFromAsync(IChildFile fileToMove, IModifiableFolder source, bool overwrite, CancellationToken cancellationToken, MoveFromDelegate fallback)
-    {
-        await ftpClient.EnsureConnectedAsync(cancellationToken);
-
-        if (source is not FtpFolder)
-            return await fallback(this, fileToMove, source, overwrite, cancellationToken);
-
-        var newFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
-
-        if (!overwrite && await ftpClient.FileExists(newFilePath, cancellationToken))
-            throw new FileAlreadyExistsException("Destination file already exists.");
-
-        if (!await ftpClient.MoveFile(fileToMove.Id, newFilePath, FtpRemoteExists.Overwrite, cancellationToken))
-            throw new Exception($"Cannot move file \"{fileToMove.Id}\" to destination path \"{Id}\".");
-
-        var item = await ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
-
-        if (item is not IChildFile)
-            throw new InvalidOperationException();
-
-        return (IChildFile)item;
     }
 }
