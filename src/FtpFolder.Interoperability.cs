@@ -11,7 +11,21 @@ public partial class FtpFolder
         IFile fileToCopy,
         IModifiableFolder targetFolder,
         bool overwrite,
-        CreateCopyOfDelegate fallback,
+        CreateRenamedCopyOfDelegate fallback,
+        CancellationToken cancellationToken
+    )
+    {
+        return await CreateCopyOfInteroperableAsync(sourceClient, targetClient, fileToCopy, targetFolder, overwrite, fileToCopy.Name, fallback, cancellationToken);
+    }
+
+    private async Task<IChildFile> CreateCopyOfInteroperableAsync(
+        AsyncFtpClient sourceClient,
+        AsyncFtpClient targetClient,
+        IFile fileToCopy,
+        IModifiableFolder targetFolder,
+        bool overwrite,
+        string newName,
+        CreateRenamedCopyOfDelegate fallback,
         CancellationToken cancellationToken
     )
     {
@@ -20,7 +34,7 @@ public partial class FtpFolder
             targetClient.EnsureConnectedAsync(cancellationToken)
         );
 
-        var targetFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
+        var targetFilePath = global::System.IO.Path.Combine(Id, newName);
 
         var status = await sourceClient.TransferFile(
             fileToCopy.Id,
@@ -35,7 +49,7 @@ public partial class FtpFolder
             // Either the server does not support FXP or the transfer failed.
             // Only thing we can do in this case is to use the fallback
             // implementation.
-            return await fallback(this, fileToCopy, overwrite, cancellationToken);
+            return await fallback(this, fileToCopy, overwrite, newName, cancellationToken);
         }
 
         var file = await targetClient.GetStorableFromPathAsync(targetFilePath, cancellationToken);
@@ -53,7 +67,22 @@ public partial class FtpFolder
         IChildFile fileToMove,
         IModifiableFolder targetFolder,
         bool overwrite,
-        MoveFromDelegate fallback,
+        MoveRenamedFromDelegate fallback,
+        CancellationToken cancellationToken
+    )
+    {
+        return await MoveFromInteroperableAsync(sourceClient, targetClient, sourceFolder, fileToMove, targetFolder, overwrite, fileToMove.Name, fallback, cancellationToken);
+    }
+
+    private async Task<IChildFile> MoveFromInteroperableAsync(
+        AsyncFtpClient sourceClient,
+        AsyncFtpClient targetClient,
+        IModifiableFolder sourceFolder,
+        IChildFile fileToMove,
+        IModifiableFolder targetFolder,
+        bool overwrite,
+        string newName,
+        MoveRenamedFromDelegate fallback,
         CancellationToken cancellationToken
     )
     {
@@ -62,7 +91,7 @@ public partial class FtpFolder
             targetClient.EnsureConnectedAsync(cancellationToken)
         );
 
-        var targetFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
+        var targetFilePath = global::System.IO.Path.Combine(Id, newName);
 
         var status = await sourceClient.TransferFile(
             fileToMove.Id,
@@ -77,7 +106,7 @@ public partial class FtpFolder
             // Either the server does not support FXP or the transfer failed.
             // Only thing we can do in this case is to use the fallback
             // implementation.
-            return await fallback(this, fileToMove, sourceFolder, overwrite, cancellationToken);
+            return await fallback(this, fileToMove, sourceFolder, overwrite, newName, cancellationToken);
         }
 
         await sourceClient.DeleteFile(fileToMove.Id, cancellationToken);

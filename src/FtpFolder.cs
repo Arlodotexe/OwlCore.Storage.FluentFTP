@@ -9,8 +9,8 @@ public partial class FtpFolder :
     IGetItem,
     IGetFirstByName,
     IGetItemRecursive,
-    IMoveFrom,
-    ICreateCopyOf
+    ICreateRenamedCopyOf,
+    IMoveRenamedFrom
 {
     internal readonly AsyncFtpClient _ftpClient;
 
@@ -33,12 +33,21 @@ public partial class FtpFolder :
 
     public string Path => FtpListItem.FullName;
 
-    public async Task<IChildFile> CreateCopyOfAsync(IFile fileToCopy, bool overwrite, CancellationToken cancellationToken, CreateCopyOfDelegate fallback)
+    public Task<IChildFile> CreateCopyOfAsync(IFile fileToCopy, bool overwrite, CancellationToken cancellationToken, CreateCopyOfDelegate fallback)
+    {
+        // For code deduplication in this implementation,
+        // route to the overload with rename support
+        // while using the given non-rename overload as fallback.
+        // This also discards the filled newName param in the fallback, which is originally passed into the newName param in the following method call:
+        return CreateCopyOfAsync(fileToCopy, overwrite, newName: fileToCopy.Name, cancellationToken, (modifiableFolder, file, overwrite, _, cancellationToken) => fallback(modifiableFolder, file, overwrite, cancellationToken));
+    }
+
+    public async Task<IChildFile> CreateCopyOfAsync(IFile fileToCopy, bool overwrite, string newName, CancellationToken cancellationToken, CreateRenamedCopyOfDelegate fallback)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         if (fileToCopy is not FtpFile)
-            return await fallback(this, fileToCopy, overwrite, cancellationToken);
+            return await fallback(this, fileToCopy, overwrite, newName, cancellationToken);
         else
         {
             var ftpFile = (FtpFile)fileToCopy;
@@ -48,12 +57,11 @@ public partial class FtpFolder :
 
             if (sourceHostUri != targetHostUri)
             {
-                var targetFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
-                return await CreateCopyOfInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToCopy, this, overwrite, fallback, cancellationToken);
+                return await CreateCopyOfInteroperableAsync(ftpFile._ftpClient, _ftpClient, fileToCopy, this, overwrite, newName, fallback, cancellationToken);
             }
         }
 
-        var newFilePath = global::System.IO.Path.Combine(Id, fileToCopy.Name);
+        var newFilePath = global::System.IO.Path.Combine(Id, newName);
 
         if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
             throw new FileAlreadyExistsException("Destination file already exists.");
@@ -74,12 +82,21 @@ public partial class FtpFolder :
         return (IChildFile)item;
     }
 
-    public async Task<IChildFile> MoveFromAsync(IChildFile fileToMove, IModifiableFolder source, bool overwrite, CancellationToken cancellationToken, MoveFromDelegate fallback)
+    public Task<IChildFile> MoveFromAsync(IChildFile fileToMove, IModifiableFolder source, bool overwrite, CancellationToken cancellationToken, MoveFromDelegate fallback)
+    {
+        // For code deduplication in this implementation,
+        // route to the overload with rename support
+        // while using the given non-rename overload as fallback.
+        // This also discards the filled newName param in the fallback, which is originally passed into the newName param in the following method call:
+        return MoveFromAsync(fileToMove, source, overwrite, newName: fileToMove.Name, cancellationToken, (modifiableFolder, file, source, overwrite, _, cancellationToken) => fallback(modifiableFolder, file, source, overwrite, cancellationToken));
+    }
+
+    public async Task<IChildFile> MoveFromAsync(IChildFile fileToMove, IModifiableFolder source, bool overwrite, string newName, CancellationToken cancellationToken, MoveRenamedFromDelegate fallback)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
         if (source is not FtpFolder)
-            return await fallback(this, fileToMove, source, overwrite, cancellationToken);
+            return await fallback(this, fileToMove, source, overwrite, newName, cancellationToken);
         else
         {
             var ftpFile = (FtpFile)fileToMove;
@@ -89,12 +106,11 @@ public partial class FtpFolder :
 
             if (sourceHostUri != targetHostUri)
             {
-                var targetFilePath = global::System.IO.Path.Combine(Id, ftpFile.Name);
-                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, source, fileToMove, this, overwrite, fallback, cancellationToken);
+                return await MoveFromInteroperableAsync(ftpFile._ftpClient, _ftpClient, source, fileToMove, this, overwrite, newName, fallback, cancellationToken);
             }
         }
 
-        var newFilePath = global::System.IO.Path.Combine(Id, fileToMove.Name);
+        var newFilePath = global::System.IO.Path.Combine(Id, newName);
 
         if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
             throw new FileAlreadyExistsException("Destination file already exists.");
