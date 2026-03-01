@@ -1,4 +1,4 @@
-﻿using FluentFTP;
+using FluentFTP;
 using System.Runtime.CompilerServices;
 
 namespace OwlCore.Storage.FluentFTP;
@@ -24,6 +24,11 @@ public partial class FtpFolder :
         _ftpClient = ftpClient;
         FtpListItem = item;
     }
+
+    /// <summary>
+    /// Gets or sets the interval for property watcher polling.
+    /// </summary>
+    public TimeSpan PropertyWatcherInterval { get; set; } = TimeSpan.FromSeconds(1);
 
     public FtpListItem FtpListItem { get; }
 
@@ -66,12 +71,32 @@ public partial class FtpFolder :
         if (!overwrite && await _ftpClient.FileExists(newFilePath, cancellationToken))
             throw new FileAlreadyExistsException("Destination file already exists.");
 
+        // Get source LastModifiedAt before copying
+        DateTime? sourceLastModified = null;
+        if (fileToCopy is ILastModifiedAt lastModifiedSource)
+        {
+            sourceLastModified = await lastModifiedSource.LastModifiedAt.GetValueAsync(cancellationToken);
+        }
+
         using (var stream = await _ftpClient.OpenRead(fileToCopy.Id, token: cancellationToken))
         {
             var status = await _ftpClient.UploadStream(stream, newFilePath, FtpRemoteExists.Overwrite, token: cancellationToken);
 
             if (status == FtpStatus.Failed)
                 throw new Exception("Failed to copy file.");
+        }
+
+        // Preserve LastModifiedAt on the copy (copy semantics)
+        if (sourceLastModified is not null)
+        {
+            try
+            {
+                await _ftpClient.SetModifiedTime(newFilePath, sourceLastModified.Value, cancellationToken);
+            }
+            catch
+            {
+                // Server may not support MFMT - best effort
+            }
         }
 
         var item = await _ftpClient.GetStorableFromPathAsync(newFilePath, cancellationToken);
@@ -234,7 +259,29 @@ public partial class FtpFolder :
 
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
 
+#if NETSTANDARD2_0
+        var listing = await _ftpClient.GetListing(Id, token: cancellationToken);
+        foreach (var item in listing)
+        {
+            if (item.Name == "." || item.Name == "..") continue;
+
+            bool typeMatch = type switch
+            {
+                StorableType.File => item.Type == FtpObjectType.File,
+                StorableType.Folder => item.Type == FtpObjectType.Directory,
+                _ => true
+            };
+
+            if (!typeMatch) continue;
+
+            if (item.Type == FtpObjectType.Directory)
+                yield return new FtpFolder(_ftpClient, item);
+            else
+                yield return new FtpFile(_ftpClient, item);
+        }
+#else
         var enumerable = _ftpClient.GetListingEnumerable(Id, cancellationToken)
+            .Where(item => item.Name != "." && item.Name != "..") // Filter out . and .. directory entries
             .Where(item => type switch
             {
                 StorableType.File => item.Type == FtpObjectType.File,
@@ -251,6 +298,7 @@ public partial class FtpFolder :
 
         await foreach (var item in enumerable)
             yield return item;
+#endif
     }
 
     public async Task<IFolder?> GetParentAsync(CancellationToken cancellationToken = default)
@@ -269,4 +317,13 @@ public partial class FtpFolder :
 
         return (IFolder)folder;
     }
+}
+
+public partial class FtpFolder : ICreatedAt, ILastModifiedAt
+{
+    /// <inheritdoc />
+    public ICreatedAtProperty CreatedAt => new FtpCreatedAtProperty(this, FtpListItem, _ftpClient.Config, PropertyWatcherInterval);
+
+    /// <inheritdoc />
+    public ILastModifiedAtProperty LastModifiedAt => new FtpFolderLastModifiedAtProperty(this, FtpListItem, _ftpClient.Config, PropertyWatcherInterval);
 }

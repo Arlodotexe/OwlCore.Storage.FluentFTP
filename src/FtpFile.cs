@@ -1,4 +1,4 @@
-﻿using FluentFTP;
+using FluentFTP;
 using Nerdbank.Streams;
 
 namespace OwlCore.Storage.FluentFTP;
@@ -8,7 +8,7 @@ public partial class FtpFile : IChildFile
     internal readonly AsyncFtpClient _ftpClient;
 
     /// <summary>
-    /// Initializes an instance of <see cref="FtpFolder"/>.
+    /// Initializes an instance of <see cref="FtpFile"/>.
     /// </summary>
     /// <param name="ftpClient">The FTP client to use for FTP operations.</param>
     /// <param name="item">The FTP listing item to use to provide information.</param>
@@ -17,6 +17,11 @@ public partial class FtpFile : IChildFile
         _ftpClient = ftpClient;
         FtpListItem = item;
     }
+
+    /// <summary>
+    /// Gets or sets the interval for property watcher polling.
+    /// </summary>
+    public TimeSpan PropertyWatcherInterval { get; set; } = TimeSpan.FromSeconds(1);
 
     public FtpListItem FtpListItem { get; }
 
@@ -64,4 +69,13 @@ public partial class FtpFile : IChildFile
                 throw new ArgumentOutOfRangeException(nameof(accessMode));
         }
     }
+}
+
+public partial class FtpFile : ICreatedAt, ILastModifiedAt
+{
+    /// <inheritdoc />
+    public ICreatedAtProperty CreatedAt => new FtpCreatedAtProperty(this, FtpListItem, _ftpClient.Config, PropertyWatcherInterval);
+
+    /// <inheritdoc />
+    public ILastModifiedAtProperty LastModifiedAt => new FtpLastModifiedAtProperty(this, _ftpClient, Path, PropertyWatcherInterval);
 }
