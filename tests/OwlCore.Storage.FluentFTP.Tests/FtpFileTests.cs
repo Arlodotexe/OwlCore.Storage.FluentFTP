@@ -1,7 +1,6 @@
 using FluentFTP;
 using FubarDev.FtpServer;
 using FubarDev.FtpServer.FileSystem.DotNet;
-using Microsoft.Extensions.DependencyInjection;
 using OwlCore.Storage.CommonTests;
 using System.Net;
 
@@ -13,7 +12,7 @@ public class FtpFileTests : CommonIFileTests
     private static ServiceProvider? _serviceProvider;
     private static IFtpServerHost? _ftpServer;
     private static string? _ftpRoot;
-    private static int _port = 2121; // Use non-privileged port
+    private static readonly int _port = 2121; // Use non-privileged port
 
     private AsyncFtpClient _ftpClient = null!;
 
@@ -64,8 +63,11 @@ public class FtpFileTests : CommonIFileTests
     public async Task InitAsync()
     {
         // Anonymous login: user="anonymous", pass=email or empty
-        _ftpClient = new AsyncFtpClient("127.0.0.1", port: _port);
-        _ftpClient.Credentials = new NetworkCredential("anonymous", "test@test.com");
+        _ftpClient = new AsyncFtpClient("127.0.0.1", port: _port)
+        {
+            Credentials = new NetworkCredential("anonymous", "test@test.com")
+        };
+
         await _ftpClient.Connect();
     }
 

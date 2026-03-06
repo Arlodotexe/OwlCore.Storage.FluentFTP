@@ -3,6 +3,10 @@ using Nerdbank.Streams;
 
 namespace OwlCore.Storage.FluentFTP;
 
+/// <summary>
+/// Represents a <see cref="IFile" /> in an FTP storage system, providing access
+/// to file properties and content through the FluentFTP library.
+/// </summary>
 public partial class FtpFile : IChildFile
 {
     internal readonly AsyncFtpClient _ftpClient;
@@ -23,14 +27,21 @@ public partial class FtpFile : IChildFile
     /// </summary>
     public TimeSpan PropertyWatcherInterval { get; set; } = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// The underlying FTP listing item that provides information about this file.
+    /// </summary>
     public FtpListItem FtpListItem { get; }
 
+    /// <inheritdoc />
     public string Id => Path;
 
+    /// <inheritdoc/>
     public string Path => FtpListItem.FullName;
 
+    /// <inheritdoc />
     public string Name => FtpListItem.Name;
 
+    /// <inheritdoc />
     public async Task<IFolder?> GetParentAsync(CancellationToken cancellationToken = default)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
@@ -48,6 +59,7 @@ public partial class FtpFile : IChildFile
         return (IFolder)folder;
     }
 
+    /// <inheritdoc />
     public async Task<Stream> OpenStreamAsync(FileAccess accessMode, CancellationToken cancellationToken = default)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
