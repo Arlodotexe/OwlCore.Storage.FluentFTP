@@ -15,7 +15,7 @@ internal static class FtpTimeHelper
     /// <returns>The timestamp in local time (Kind=Local).</returns>
     public static DateTime ToLocalTime(DateTime ftpTime, FtpConfig config)
     {
-        return config.TimeConversion switch
+        var result = config.TimeConversion switch
         {
             // FluentFTP already converted to local time
             FtpDate.LocalTime => DateTime.SpecifyKind(ftpTime, DateTimeKind.Local),
@@ -26,10 +26,17 @@ internal static class FtpTimeHelper
                 : DateTime.SpecifyKind(ftpTime, DateTimeKind.Utc).ToLocalTime(),
             
             // ServerTime: no conversion done by FluentFTP; use TimeZone offset to convert
-            FtpDate.ServerTime => TimeZoneInfo.ConvertTime(ftpTime, TimeZoneInfo.Local, config.ServerTimeZone),
+            FtpDate.ServerTime => TimeZoneInfo.ConvertTime(
+                DateTime.SpecifyKind(ftpTime, DateTimeKind.Unspecified),
+                config.ServerTimeZone,
+                config.ClientTimeZone
+            ),
             
             _ => DateTime.SpecifyKind(ftpTime, DateTimeKind.Local)
         };
+
+        // Truncate to second precision (FTP servers don't preserve milliseconds)
+        return new DateTime(result.Ticks - (result.Ticks % TimeSpan.TicksPerSecond), result.Kind);
     }
 
     /// <summary>
@@ -45,18 +52,25 @@ internal static class FtpTimeHelper
             ? localTime 
             : localTime.ToLocalTime();
 
-        return config.TimeConversion switch
+        var result = config.TimeConversion switch
         {
             // FluentFTP expects local time
             FtpDate.LocalTime => local,
             
             // FluentFTP expects UTC
             FtpDate.UTC => local.ToUniversalTime(),
-            
+
             // FluentFTP expects server time; convert from local to server timezone
-            FtpDate.ServerTime => TimeZoneInfo.ConvertTime(localTime, TimeZoneInfo.Local, config.ServerTimeZone),
-            
+            FtpDate.ServerTime => TimeZoneInfo.ConvertTime(
+                DateTime.SpecifyKind(local, DateTimeKind.Unspecified),
+                config.ClientTimeZone,
+                config.ServerTimeZone
+            ),
+
             _ => local
         };
+
+        // Truncate to second precision (FTP servers don't preserve milliseconds)
+        return new DateTime(result.Ticks - (result.Ticks % TimeSpan.TicksPerSecond), result.Kind);
     }
 }
