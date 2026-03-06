@@ -26,7 +26,7 @@ internal static class FtpTimeHelper
                 : DateTime.SpecifyKind(ftpTime, DateTimeKind.Utc).ToLocalTime(),
             
             // ServerTime: no conversion done by FluentFTP; use TimeZone offset to convert
-            FtpDate.ServerTime => ConvertFromServerTime(ftpTime, config.TimeZone),
+            FtpDate.ServerTime => TimeZoneInfo.ConvertTime(ftpTime, TimeZoneInfo.Local, config.ServerTimeZone),
             
             _ => DateTime.SpecifyKind(ftpTime, DateTimeKind.Local)
         };
@@ -54,46 +54,9 @@ internal static class FtpTimeHelper
             FtpDate.UTC => local.ToUniversalTime(),
             
             // FluentFTP expects server time; convert from local to server timezone
-            FtpDate.ServerTime => ConvertToServerTime(local, config.TimeZone),
+            FtpDate.ServerTime => TimeZoneInfo.ConvertTime(localTime, TimeZoneInfo.Local, config.ServerTimeZone),
             
             _ => local
         };
-    }
-
-    /// <summary>
-    /// Converts server time to local time using the server's UTC offset.
-    /// </summary>
-    private static DateTime ConvertFromServerTime(DateTime serverTime, double serverUtcOffsetHours)
-    {
-        // Create a custom timezone for the server
-        var serverOffset = TimeSpan.FromHours(serverUtcOffsetHours);
-        var serverTimeZone = TimeZoneInfo.CreateCustomTimeZone(
-            "FtpServer", 
-            serverOffset, 
-            "FTP Server Time", 
-            "FTP Server Time");
-        
-        // Convert from server time to local time
-        return TimeZoneInfo.ConvertTime(
-            DateTime.SpecifyKind(serverTime, DateTimeKind.Unspecified),
-            serverTimeZone,
-            TimeZoneInfo.Local);
-    }
-
-    /// <summary>
-    /// Converts local time to server time using the server's UTC offset.
-    /// </summary>
-    private static DateTime ConvertToServerTime(DateTime localTime, double serverUtcOffsetHours)
-    {
-        // Create a custom timezone for the server
-        var serverOffset = TimeSpan.FromHours(serverUtcOffsetHours);
-        var serverTimeZone = TimeZoneInfo.CreateCustomTimeZone(
-            "FtpServer",
-            serverOffset,
-            "FTP Server Time",
-            "FTP Server Time");
-        
-        // Convert from local time to server time
-        return TimeZoneInfo.ConvertTime(localTime, TimeZoneInfo.Local, serverTimeZone);
     }
 }
