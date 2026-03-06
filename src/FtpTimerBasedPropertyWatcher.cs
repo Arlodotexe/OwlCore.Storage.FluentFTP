@@ -75,10 +75,13 @@ public class FtpTimerBasedPropertyWatcher<T> : IStoragePropertyWatcher<T>
     public void Dispose()
     {
         _timer.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc/>
+#pragma warning disable CA1816
     public ValueTask DisposeAsync()
+#pragma warning restore CA1816
     {
         Dispose();
         return default;
