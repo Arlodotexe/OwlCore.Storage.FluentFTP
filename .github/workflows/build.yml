@@ -30,3 +30,6 @@ jobs:
 
       - name: dotnet build
         run: dotnet build /r
+
+      - name: dotnet test
+        run: dotnet test
