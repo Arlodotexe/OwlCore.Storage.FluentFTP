@@ -9,29 +9,21 @@ namespace OwlCore.Storage.FluentFTP;
 public class FtpTimerBasedPropertyWatcher<T> : IStoragePropertyWatcher<T>
 {
     private readonly Timer _timer;
-    private T? _lastValue;
-    private bool _hasLastValue;
+    private T _lastValue;
 
     /// <summary>
     /// Creates a new instance of <see cref="FtpTimerBasedPropertyWatcher{T}"/>.
     /// </summary>
     /// <param name="property">The property being watched.</param>
     /// <param name="interval">How often checks for updates should be made.</param>
-    public FtpTimerBasedPropertyWatcher(IStorageProperty<T> property, TimeSpan interval)
+    /// <param name="initialValue">The initial value to poll against and fire changed events if different.</param>
+    public FtpTimerBasedPropertyWatcher(IStorageProperty<T> property, TimeSpan interval, T initialValue)
     {
         Property = property;
 
         // Capture initial value synchronously to establish baseline before returning
         // This ensures we have a baseline before any event handlers can trigger updates
-        try
-        {
-            _lastValue = property.GetValueAsync(CancellationToken.None).GetAwaiter().GetResult();
-            _hasLastValue = true;
-        }
-        catch
-        {
-            // If we can't get initial value, we'll capture it on first poll
-        }
+        _lastValue = initialValue;
 
         _timer = new Timer(_ => ExecuteAsync().Forget());
         _timer.Change(interval, interval);
@@ -52,17 +44,10 @@ public class FtpTimerBasedPropertyWatcher<T> : IStoragePropertyWatcher<T>
         {
             var currentValue = await Property.GetValueAsync(CancellationToken.None);
 
-            if (!_hasLastValue)
+            if (!EqualityComparer<T>.Default.Equals(currentValue, _lastValue))
             {
                 _lastValue = currentValue;
-                _hasLastValue = true;
-                return;
-            }
-
-            if (!EqualityComparer<T>.Default.Equals(currentValue, _lastValue!))
-            {
-                _lastValue = currentValue;
-                ValueUpdated?.Invoke(this, currentValue!);
+                ValueUpdated?.Invoke(this, currentValue);
             }
         }
         catch

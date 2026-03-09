@@ -22,6 +22,7 @@ public sealed class FtpCreatedAtProperty : SimpleMutableStorageProperty<DateTime
             {
                 if (item.Created == DateTime.MinValue)
                     return null;
+                    
                 // FluentFTP handles conversion based on TimeConversion setting
                 // item.Created is already converted per TimeConversion; ensure local time for storage contract
                 return FtpTimeHelper.ToLocalTime(item.Created, config);
@@ -31,10 +32,10 @@ public sealed class FtpCreatedAtProperty : SimpleMutableStorageProperty<DateTime
     }
 
     /// <inheritdoc/>
-    public override Task<IStoragePropertyWatcher<DateTime?>> GetWatcherAsync(CancellationToken cancellationToken)
+    public override async Task<IStoragePropertyWatcher<DateTime?>> GetWatcherAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<IStoragePropertyWatcher<DateTime?>>(
-            new FtpTimerBasedPropertyWatcher<DateTime?>(this, _watcherInterval));
+        var initialValue = await GetValueAsync(cancellationToken);
+        return new FtpTimerBasedPropertyWatcher<DateTime?>(this, _watcherInterval, initialValue);
     }
 }
 
@@ -79,10 +80,10 @@ public sealed class FtpLastModifiedAtProperty : SimpleModifiableStorageProperty<
     }
 
     /// <inheritdoc/>
-    public override Task<IStoragePropertyWatcher<DateTime?>> GetWatcherAsync(CancellationToken cancellationToken)
+    public override async Task<IStoragePropertyWatcher<DateTime?>> GetWatcherAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<IStoragePropertyWatcher<DateTime?>>(
-            new FtpTimerBasedPropertyWatcher<DateTime?>(this, _watcherInterval));
+        var initialValue = await GetValueAsync(cancellationToken);
+        return new FtpTimerBasedPropertyWatcher<DateTime?>(this, _watcherInterval, initialValue);
     }
 }
 
@@ -106,6 +107,7 @@ public sealed class FtpFolderLastModifiedAtProperty : SimpleMutableStorageProper
             {
                 if (item.Modified == DateTime.MinValue)
                     return null;
+
                 // FluentFTP handles conversion based on TimeConversion setting; ensure local time for storage contract
                 return FtpTimeHelper.ToLocalTime(item.Modified, config);
             })
@@ -114,9 +116,9 @@ public sealed class FtpFolderLastModifiedAtProperty : SimpleMutableStorageProper
     }
 
     /// <inheritdoc/>
-    public override Task<IStoragePropertyWatcher<DateTime?>> GetWatcherAsync(CancellationToken cancellationToken)
+    public override async Task<IStoragePropertyWatcher<DateTime?>> GetWatcherAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<IStoragePropertyWatcher<DateTime?>>(
-            new FtpTimerBasedPropertyWatcher<DateTime?>(this, _watcherInterval));
+        var initialValue = await GetValueAsync(cancellationToken);
+        return new FtpTimerBasedPropertyWatcher<DateTime?>(this, _watcherInterval, initialValue);
     }
 }
