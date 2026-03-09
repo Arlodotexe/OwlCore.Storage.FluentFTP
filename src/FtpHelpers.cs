@@ -1,8 +1,8 @@
-﻿using FluentFTP;
+using FluentFTP;
 
 namespace OwlCore.Storage.FluentFTP;
 
-public static class FtpHelpers
+internal static class FtpHelpers
 {
     internal static Task EnsureConnectedAsync(this AsyncFtpClient client, CancellationToken cancellationToken = default)
     {

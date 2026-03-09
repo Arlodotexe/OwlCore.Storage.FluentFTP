@@ -1,4 +1,4 @@
-﻿using FluentFTP;
+using FluentFTP;
 
 namespace OwlCore.Storage.FluentFTP;
 

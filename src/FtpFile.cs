@@ -1,14 +1,18 @@
-﻿using FluentFTP;
+using FluentFTP;
 using Nerdbank.Streams;
 
 namespace OwlCore.Storage.FluentFTP;
 
+/// <summary>
+/// Represents a <see cref="IFile" /> in an FTP storage system, providing access
+/// to file properties and content through the FluentFTP library.
+/// </summary>
 public partial class FtpFile : IChildFile
 {
     internal readonly AsyncFtpClient _ftpClient;
 
     /// <summary>
-    /// Initializes an instance of <see cref="FtpFolder"/>.
+    /// Initializes an instance of <see cref="FtpFile"/>.
     /// </summary>
     /// <param name="ftpClient">The FTP client to use for FTP operations.</param>
     /// <param name="item">The FTP listing item to use to provide information.</param>
@@ -18,14 +22,26 @@ public partial class FtpFile : IChildFile
         FtpListItem = item;
     }
 
+    /// <summary>
+    /// Gets or sets the interval for property watcher polling.
+    /// </summary>
+    public TimeSpan PropertyWatcherInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The underlying FTP listing item that provides information about this file.
+    /// </summary>
     public FtpListItem FtpListItem { get; }
 
+    /// <inheritdoc />
     public string Id => Path;
 
+    /// <inheritdoc/>
     public string Path => FtpListItem.FullName;
 
+    /// <inheritdoc />
     public string Name => FtpListItem.Name;
 
+    /// <inheritdoc />
     public async Task<IFolder?> GetParentAsync(CancellationToken cancellationToken = default)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
@@ -43,6 +59,7 @@ public partial class FtpFile : IChildFile
         return (IFolder)folder;
     }
 
+    /// <inheritdoc />
     public async Task<Stream> OpenStreamAsync(FileAccess accessMode, CancellationToken cancellationToken = default)
     {
         await _ftpClient.EnsureConnectedAsync(cancellationToken);
@@ -64,4 +81,13 @@ public partial class FtpFile : IChildFile
                 throw new ArgumentOutOfRangeException(nameof(accessMode));
         }
     }
+}
+
+public partial class FtpFile : ICreatedAt, ILastModifiedAt
+{
+    /// <inheritdoc />
+    public ICreatedAtProperty CreatedAt => new FtpCreatedAtProperty(this, FtpListItem, _ftpClient.Config, PropertyWatcherInterval);
+
+    /// <inheritdoc />
+    public ILastModifiedAtProperty LastModifiedAt => new FtpLastModifiedAtProperty(this, _ftpClient, Path, PropertyWatcherInterval);
 }
